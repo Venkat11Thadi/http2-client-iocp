@@ -166,9 +166,10 @@
 //    struct bufferevent* bev = session_data->bev;
 //    (void)session;
 //    (void)flags;
+//    printf("Send 1 - \n");
 //
 //    bufferevent_write(bev, data, length);
-//    printf("Send - \n");
+//    printf("Send 2 - \n");
 //    return (nghttp2_ssize)length;
 //}
 //
@@ -375,7 +376,10 @@
 //    if (stream_id < 0) {
 //        printf("Could not submit HTTP request: %s", nghttp2_strerror(stream_id));
 //    }
-//
+//    else
+//    {
+//        printf("submitted HTTP request\n");
+//    }
 //    stream_data->stream_id = stream_id;
 //}
 //
@@ -389,6 +393,7 @@
 //        printf("Fatal error: %s", nghttp2_strerror(rv));
 //        return -1;
 //    }
+//    printf("session_send\n");
 //    return 0;
 //}
 //
@@ -403,12 +408,15 @@
 //    size_t datalen = evbuffer_get_length(input);
 //    unsigned char* data = evbuffer_pullup(input, -1);
 //
+//    printf("readcb\n");
+//
 //    readlen = nghttp2_session_mem_recv2(session_data->session, data, datalen);
 //    if (readlen < 0) {
 //        printf("Fatal error: %s", nghttp2_strerror((int)readlen));
 //        delete_http2_session_data(session_data);
 //        return;
 //    }
+//    printf("readcb: %d\n", readlen);
 //    if (evbuffer_drain(input, (size_t)readlen) != 0) {
 //        printf("Fatal error: evbuffer_drain failed");
 //        delete_http2_session_data(session_data);
@@ -431,8 +439,10 @@
 //    if (nghttp2_session_want_read(session_data->session) == 0 &&
 //        nghttp2_session_want_write(session_data->session) == 0 &&
 //        evbuffer_get_length(bufferevent_get_output(session_data->bev)) == 0) {
+//        printf("writecb in\n");
 //        delete_http2_session_data(session_data);
 //    }
+//    printf("writecb\n");
 //}
 //
 ///* eventcb for bufferevent. For the purpose of simplicity and

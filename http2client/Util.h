@@ -232,10 +232,6 @@ create_http2_session_data() {
 }
 
 static void delete_http2_session_data(http2_session_data* session_data) {
-
-    /*if (ssl) {
-        SSL_shutdown(ssl);
-    }*/
     nghttp2_session_del(session_data->session);
     session_data->session = NULL;
     if (session_data->stream_data) {
@@ -245,8 +241,7 @@ static void delete_http2_session_data(http2_session_data* session_data) {
     free(session_data);
 }
 
-/* Serialize the frame and send (or buffer) the data to
-   bufferevent. */
+/* Serialize the frame and send (or buffer) the data. */
 static int session_send(http2_session_data* session_data) {
     int rv;
 
@@ -280,8 +275,7 @@ static void print_headers(FILE* f, nghttp2_nv* nva, size_t nvlen) {
 }
 
 /* nghttp2_send_callback2. Here we transmit the |data|, |length|
-   bytes, to the network. Because we are using libevent bufferevent,
-   we just write those bytes into bufferevent buffer. */
+   bytes, to the network. */
 static nghttp2_ssize send_callback(nghttp2_session* session,
     const uint8_t* data, size_t length,
     int flags, void* user_data) {

@@ -18,7 +18,7 @@
     <ClCompile Include="http_parser.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="http2clienttest.cpp">
+    <ClCompile Include="http2client.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

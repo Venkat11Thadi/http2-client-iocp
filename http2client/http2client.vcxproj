@@ -128,7 +128,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="http2clienttest.cpp" />
+    <ClCompile Include="http2client.cpp" />
     <ClCompile Include="http_parser.c" />
   </ItemGroup>
   <ItemGroup>

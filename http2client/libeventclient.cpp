@@ -408,14 +408,13 @@
 //    size_t datalen = evbuffer_get_length(input);
 //    unsigned char* data = evbuffer_pullup(input, -1);
 //
-//    printf("readcb\n");
-//
 //    readlen = nghttp2_session_mem_recv2(session_data->session, data, datalen);
 //    if (readlen < 0) {
 //        printf("Fatal error: %s", nghttp2_strerror((int)readlen));
 //        delete_http2_session_data(session_data);
 //        return;
 //    }
+//
 //    printf("readcb: %d\n", readlen);
 //    if (evbuffer_drain(input, (size_t)readlen) != 0) {
 //        printf("Fatal error: evbuffer_drain failed");
@@ -571,7 +570,7 @@
 //            printf("Winsock initialized.\n");
 //        }
 //
-//        run("https://www.example.com");
+//        run("https://www.google.com");
 //
 //    WSACleanup();
 //    return 0;

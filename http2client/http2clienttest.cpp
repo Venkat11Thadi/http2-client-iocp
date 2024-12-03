@@ -75,7 +75,7 @@ void init()
         CloseHandle(pThread);
     }
 
-    const char* uri = "https://www.example.com";
+    const char* uri = "https://www.google.com";
     struct http_parser_url u;
     char* host;
     uint16_t port;
@@ -194,12 +194,12 @@ void init()
         }
         else if (status == SSL_ERROR_SSL)
         {
-            printf("ssl_error_ssl\n");
+            printf("SSL_ERROR_SSL\n");
             return;
         }
         else
         {
-            printf("ssl_get_error: %d\n", status);
+            printf("SSL_get_error: %d\n", status);
             return;
         }
     }
@@ -230,7 +230,6 @@ LPPER_IO_DATA UpdateIoCompletionPort(SOCKET socket, IO_OPERATION ioOperation)
 
     ioData->ssl = NULL;
     ioData->sslCtx = NULL;
-    ioData->pkey = NULL;
 
     ioData->rbio = NULL;
     ioData->wbio = NULL;
@@ -301,7 +300,7 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                 int bio_write = BIO_write(ioData->rbio, ioData->recvBuffer, bytesTransferred);
                 if (bio_write > 0)
                 {
-                    printf("BIO_write() server - %d bytes.\n", bio_write);
+                    printf("BIO_write: %d bytes.\n", bio_write);
                 }
                 memset(ioData->recvBuffer, '\0', BUFFER_SIZE);
             }
@@ -346,10 +345,10 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                     }
 
                     // send request
-                    submit_request(ioData->session_data);
+                    submit_request(ioData->session_data); 
 
                     if (session_send(ioData->session_data) != 0) {
-                        ioData->ioOperation = SEND;
+                        printf("session_send 1\n");
                         delete_http2_session_data(ioData->session_data);
                         break;
                     }
@@ -370,7 +369,7 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                         if (WSASend(ioData->sockfd, &ioData->wsaSendBuf, 1, &ioData->bytesSend, 0, &ioData->overlapped, NULL) == SOCKET_ERROR)
                         {
                             int error = WSAGetLastError();
-                            printf("WSASend() failed: %d\n", error);
+                            printf("WSASend IO pending\n");
                             if (error != WSA_IO_PENDING)
                             {
                                 printf("Failed to send response: %d\n", error);
@@ -395,7 +394,7 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                         if (WSARecv(ioData->sockfd, &ioData->wsaRecvBuf, 1, &ioData->bytesRecv, &flags, &ioData->overlapped, NULL) == SOCKET_ERROR)
                         {
                             int error = WSAGetLastError();
-                            printf("WSARecv failed: %d\n", error);
+                            printf("WSARecv IO pending\n");
                             if (error != WSA_IO_PENDING)
                             {
                                 printf("WSARecv failed: %d\n", error);
@@ -413,7 +412,13 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                 }
                 else if (status == SSL_ERROR_SSL)
                 {
-                    printf("ssl_error_ssl\n");
+                    printf("SSL_get_error() - %s\n", ERR_error_string(ERR_get_error(), NULL));
+                    break;
+                }
+                else if (status == SSL_ERROR_SYSCALL)
+                {
+                    printf("SSL_get_error() - %s\n", ERR_error_string(ERR_get_error(), NULL));
+                    break;
                 }
                 else
                 {
@@ -430,12 +435,6 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
             printf("case - recv\n");
             int nghttp2_read;
 
-            if (nghttp2_session_want_read(ioData->session_data->session) == 0 &&
-                nghttp2_session_want_write(ioData->session_data->session) == 0 ) {
-                delete_http2_session_data(ioData->session_data);
-                printf("deleted session data\n");
-            }
-
             if (strlen(ioData->recvBuffer) > 0)
             {
                 //printf("%s\n", ioData->recvBuffer);
@@ -447,12 +446,13 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                     memset(ioData->recvBuffer, '\0', BUFFER_SIZE);
 
                     ssl_read = SSL_read(ioData->ssl, ioData->recvBuffer, BUFFER_SIZE);
+
                     if (ssl_read <= 0)
                     {
                         error = SSL_get_error(ioData->ssl, ssl_read);
-                        printf("SSL_read error - %d", error);
+                        printf("SSL_read error - %d\n", error);
 
-                        if (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE)
+                        if ((error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE) && !ioData->recvFlag)
                         {
                             ioData->bytesRecv = 0;
                             ioData->recvFlag = TRUE;
@@ -461,31 +461,37 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                             if (WSARecv(ioData->sockfd, &ioData->wsaRecvBuf, 1, &ioData->bytesRecv, &flags, &ioData->overlapped, NULL) == SOCKET_ERROR)
                             {
                                 int error = WSAGetLastError();
-                                printf("WSARecv() IO pending");
+                                printf("WSARecv IO pending\n");
                                 if (error != WSA_IO_PENDING)
                                 {
-                                    printf("WSARecv() client IO - %d", error);
+                                    printf("WSARecv client IO - %d\n", error);
                                     closesocket(ioData->sockfd);
                                     SSL_free(ioData->ssl);
                                     SSL_CTX_free(ioData->sslCtx);
-                                    delete ioData;
+                                    delete ioData; 
                                     break;
                                 }
                             }
                             else
                             {
-                                printf("WSARecv: %d bytes", ioData->bytesRecv);
+                                printf("WSARecv 2: %d bytes\n", ioData->bytesRecv);
                             }
                             break;
                         }
                         else if (error == SSL_ERROR_SSL)
                         {
-                            printf("SSL_get_error() CLIENT_IO - %s", ERR_error_string(ERR_get_error(), NULL));
-                            break;
+                            printf("SSL_get_error() - %s\n", ERR_error_string(ERR_get_error(), NULL));
+                            exit(0);
+                        }
+                        else if (error == SSL_ERROR_SYSCALL)
+                        {
+                            printf("SSL_get_error() - %s\n", ERR_error_string(ERR_get_error(), NULL));
+                            SSL_shutdown(ioData->ssl);
+                            exit(0);
                         }
                         else
                         {
-                            printf("SSL_get_error() - %d", error);
+                            printf("SSL_get_error() - %d\n", error);
                             break;
                         }
                     }
@@ -498,11 +504,12 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                             delete_http2_session_data(ioData->session_data);
                             break;
                         }
+                        memset(ioData->recvBuffer, '\0', BUFFER_SIZE);
                         if (session_send(ioData->session_data) != 0) {
+                            printf("session_send 2\n");
                             delete_http2_session_data(ioData->session_data);
                             break;
                         }
-                        memset(ioData->recvBuffer, '\0', BUFFER_SIZE);
                         while ((ssl_read = SSL_read(ioData->ssl, ioData->recvBuffer, BUFFER_SIZE)) > 0)
                         {
                             printf("ssl_read: %d\n", ssl_read);
@@ -512,28 +519,31 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                                 delete_http2_session_data(ioData->session_data);
                                 break;
                             }
+                            memset(ioData->recvBuffer, '\0', BUFFER_SIZE);
                             if (session_send(ioData->session_data) != 0) {
+                                printf("session_send 2\n");
                                 delete_http2_session_data(ioData->session_data);
                                 break;
                             }
-                            memset(ioData->recvBuffer, '\0', BUFFER_SIZE);
                         }
                     }
                 }
 
                 ioData->recvFlag = FALSE;
             }
-             
+
             if (!ioData->recvFlag)
             {
                 ioData->recvFlag = TRUE;
+                memset(ioData->recvBuffer, '\0', BUFFER_SIZE);
+
                 if (WSARecv(ioData->sockfd, &ioData->wsaRecvBuf, 1, &ioData->bytesRecv, &flags, &ioData->overlapped, NULL) == SOCKET_ERROR)
                 {
                     int error = WSAGetLastError();
-                    printf("WSARecv() IO pending\n"); 
+                    printf("WSARecv IO pending\n");
                     if (error != WSA_IO_PENDING)
                     {
-                        printf("WSARecv() - %d\n", error);
+                        printf("WSARecv - %d\n", error);
                         closesocket(ioData->sockfd);
                         SSL_free(ioData->ssl);
                         SSL_CTX_free(ioData->sslCtx);
@@ -543,18 +553,10 @@ static DWORD WINAPI WorkerThread(LPVOID lparameter)
                 }
                 else
                 {
-                    printf("WSARecv: %d\n", ioData->bytesRecv);
+                    printf("WSARecv 1: %d\n", ioData->bytesRecv);
                 }
                 break;
             }
-
-            break;
-        }
-
-        case SEND:
-        {
-            printf("case - send\n");
-
 
             break;
         }

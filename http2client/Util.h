@@ -43,9 +43,7 @@ typedef struct {
 typedef enum _IO_OPERATION
 {
     CLIENT_ACCEPT,
-    SEND,
     RECV,
-    IO,
 } IO_OPERATION, * PERIO_OPERATIONS;
 
 typedef struct _PER_IO_DATA
@@ -60,10 +58,8 @@ typedef struct _PER_IO_DATA
     SSL* ssl;
     SSL_CTX* sslCtx;
     CHAR* hostname;
-    EVP_PKEY* pkey;
     BIO* rbio, * wbio;
     http2_session_data* session_data;
-    BOOL bioFlag = FALSE;
     BOOL recvFlag = FALSE;
 } PER_IO_DATA, * LPPER_IO_DATA;
 
@@ -100,7 +96,7 @@ void openssl_cleanup()
 
 SSL_CTX* SSL_ctx_config()
 {
-    SSL_CTX* ctx = SSL_CTX_new(SSLv23_client_method());
+    SSL_CTX* ctx = SSL_CTX_new(TLS_client_method());
     if (!ctx)
     {
         printf("failed to create SSL_CTX object\n");
@@ -300,16 +296,19 @@ static nghttp2_ssize send_callback(nghttp2_session* session,
     {
         printf("ssl_write: %d\n", ssl_write);
         bio_read = BIO_read(ioData->wbio, buffer, BUFFER_SIZE);
+        
         if (bio_read > 0)
         {
             printf("bio_read: %d\n", bio_read);
             memcpy(ioData->sendBuffer, buffer, bio_read);
             ioData->ioOperation = RECV;
+            //printf("sendbuffer - %d, recvbuffer - %d\n", strlen(ioData->sendBuffer), strlen(ioData->recvBuffer));
             ioData->wsaSendBuf.len = bio_read;
+            
             if (WSASend(ioData->sockfd, &ioData->wsaSendBuf, 1, &ioData->bytesSend, 0, &ioData->overlapped, NULL) == SOCKET_ERROR)
             {
                 int error = WSAGetLastError();
-                printf("WSASend() failed: %d\n", error);
+                printf("WSASend() failed: %d\n", error);  
                 if (error != WSA_IO_PENDING)
                 {
                     printf("Failed to send response: %d\n", error);
@@ -402,6 +401,7 @@ static int on_data_chunk_recv_callback(nghttp2_session* session, uint8_t flags,
     (void)flags;
 
     if (ioData->session_data->stream_data->stream_id == stream_id) {
+        // print to stdout
         fwrite(data, 1, len, stdout);
     }
     printf("on data chunk recv callback\n");
